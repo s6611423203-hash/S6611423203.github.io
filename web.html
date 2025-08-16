@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GLB 3D Viewer</title>
+  <!-- Model Viewer (Web Component) -->
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #111822cc;
+      --text: #e7eef7;
+      --muted: #7f8ea3;
+      --accent: #58a6ff;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: linear-gradient(180deg, #0b0f14, #0d131a 40%);
+      color: var(--text); font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", sans-serif;
+      display: grid; grid-template-rows: auto 1fr auto; gap: 12px; padding: 16px;
+    }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .logo { width:34px; height:34px; border-radius:10px; background: radial-gradient(circle at 30% 30%, #79c0ff, #1f6feb 60%, #0b0f14 90%); box-shadow: 0 6px 18px #0a224433 inset, 0 4px 24px #0a224470; }
+    h1 { margin:0; font-size:18px; letter-spacing:.2px; font-weight:650; }
+
+    .viewer-wrap {
+      position: relative; border-radius: var(--radius); overflow: hidden;
+      background: #0b0f14; box-shadow: 0 10px 30px #0008, inset 0 1px 0 #ffffff08;
+      min-height: 58vh;
+    }
+    model-viewer {
+      width: 100%; height: 70vh; max-height: 78vh;
+      background-color: #0b0f14;
+      --progress-bar-color: var(--accent);
+      --poster-color: #0b0f14;
+      --poster-image: none;
+    }
+
+    /* Control panel */
+    .panel {
+      position:absolute; left:12px; bottom:12px; display:flex; flex-wrap:wrap; gap:8px;
+      padding:10px; background: var(--panel); border: 1px solid #ffffff14; border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+    }
+    .panel .group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .panel label { color: var(--muted); font-size: 12px; }
+    .panel input[type="range"] { width: 140px; }
+    .panel select, .panel button, .chip, .file {
+      background:#172130; color:var(--text); border:1px solid #ffffff1f; border-radius:10px; padding:8px 10px;
+      font: inherit; cursor:pointer; outline:none; transition: .2s ease; height: 36px;
+    }
+    .panel button:hover, .panel select:hover, .chip:hover { border-color:#ffffff33; }
+    .panel button:active { transform: translateY(1px); }
+
+    .chip { display:inline-flex; align-items:center; gap:6px; }
+    .chip input { accent-color: var(--accent); }
+
+    .file { position: relative; overflow: hidden; }
+    .file input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+
+    /* Top toolbar */
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .toolbar .tip { color: var(--muted); font-size: 12px; }
+
+    /* Drag & drop overlay */
+    .drop-overlay { position:absolute; inset:0; display:none; place-items:center; background:#0b0f14cc; backdrop-filter: blur(3px); border: 2px dashed #2b3a50; color:#a9c7ff; font-weight:600; letter-spacing:.3px; }
+    .drop-overlay.active { display:grid; }
+
+    /* Footer */
+    footer { color: var(--muted); font-size: 12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+    a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>GLB 3D Viewer</h1>
+    </div>
+    <div class="toolbar">
+      <span class="tip">ใส่ไฟล์ .glb/.gltf ได้ทันที หรือวางไฟล์ลงในพื้นที่แสดงผล</span>
+      <label class="file">อัปโหลดโมเดล
+        <input id="file-input" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" />
+      </label>
+      <button id="btn-full">เต็มจอ</button>
+        <div class="toolbar">
+      <button id="btn-shot">ถ่ายรูป (PNG)</button>
+      <button id="btn-ar">เปิด AR</button>
+    </div>
+  </header>
+
+  <div class="viewer-wrap" id="viewer-wrap">
+    <!-- เริ่มต้นชี้ไปที่ model.glb ในโฟลเดอร์เดียวกัน (เปลี่ยนได้) -->
+    <model-viewer id="viewer"
+      src="model.glb"
+      ios-src="model.usdz"
+      camera-controls
+      auto-rotate
+      autoplay
+      shadow-intensity="1"
+      exposure="1"
+      interaction-prompt="auto"
+      camera-orbit="0deg 65deg 105%"
+      min-camera-orbit="auto auto 60%"
+      max-camera-orbit="auto auto 130%"
+      ar ar-modes="webxr scene-viewer quick-look"
+      tone-mapping="aces"
+      alt="3D model">
+    
+    </model-viewer>
+
+    <div class="drop-overlay" id="drop">วางไฟล์ .glb / .gltf ที่นี่</div>
+
+    <div class="panel">
+      <div class="group">
+        <label for="sel-anim">Animation</label>
+        <select id="sel-anim"><option value="">(none)</option></select>
+        <button id="btn-reset">รีเซ็ตกล้อง</button>
+      </div>
+      <div class="group">
+        <label for="rng-exp">Exposure</label>
+        <input id="rng-exp" type="range" min="0" max="2" value="1" step="0.05" />
+        <label for="rng-shadow">Shadow</label>
+        <input id="rng-shadow" type="range" min="0" max="2" value="1" step="0.05" />
+      </div>
+      <div class="group">
+        <label>พื้นหลัง</label>
+        <input id="bg-color" type="color" value="#0b0f14" title="Background" />
+        <label class="chip"><input id="chk-rotate" type="checkbox" checked /> หมุนอัตโนมัติ</label>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div>วางไฟล์ <code>model.glb</code> ไว้โฟลเดอร์เดียวกับไฟล์นี้ หรือกด “อัปโหลดโมเดล” เพื่อเปลี่ยนโมเดล</div>
+    <div>สร้างด้วย <code>&lt;model-viewer&gt;</code> · รองรับ GLB/GLTF · AR (อุปกรณ์ที่รองรับ)</div>
+  </footer>
+
+  <script>
+    const viewer = document.getElementById('viewer');
+    const wrap = document.getElementById('viewer-wrap');
+    const drop = document.getElementById('drop');
+
+    const fileInput = document.getElementById('file-input');
+    const btnFull = document.getElementById('btn-full');
+    const btnShot = document.getElementById('btn-shot');
+    const btnAR = document.getElementById('btn-ar');
+    const btnReset = document.getElementById('btn-reset');
+    const rngExp = document.getElementById('rng-exp');
+    const rngShadow = document.getElementById('rng-shadow');
+    const bgColor = document.getElementById('bg-color');
+    const chkRotate = document.getElementById('chk-rotate');
+    const selAnim = document.getElementById('sel-anim');
+
+    let defaultOrbit = null;
+    let currentObjectURL = null;
+
+    // Helpers
+    function setObjectURL(file) {
+      if (!file) return;
+      if (currentObjectURL) URL.revokeObjectURL(currentObjectURL);
+      currentObjectURL = URL.createObjectURL(file);
+      viewer.src = currentObjectURL;
+    }
+
+    function populateAnimations() {
+      // Wait a tick to ensure animations are parsed
+      setTimeout(() => {
+        const names = viewer.availableAnimations || [];
+        selAnim.innerHTML = '<option value="">(none)</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (names.length > 0) {
+          viewer.animationName = names[0];
+          viewer.play();
+          selAnim.value = names[0];
+        }
+      }, 0);
+    }
+
+    // File input
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files && e.target.files[0];
+      setObjectURL(file);
+    });
+
+    // Drag & drop
+    ;['dragenter','dragover'].forEach(ev => wrap.addEventListener(ev, e => {
+      e.preventDefault(); e.stopPropagation(); drop.classList.add('active');
+    }));
+    ;['dragleave','drop'].forEach(ev => wrap.addEventListener(ev, e => {
+      e.preventDefault(); e.stopPropagation(); if (ev === 'dragleave') drop.classList.remove('active');
+    }));
+    wrap.addEventListener('drop', e => {
+      drop.classList.remove('active');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      setObjectURL(file);
+    });
+
+    // Viewer events
+    viewer.addEventListener('load', () => {
+      // Save default camera orbit for reset
+      defaultOrbit = viewer.getCameraOrbit();
+      populateAnimations();
+    });
+
+    // Controls
+    btnFull.addEventListener('click', () => {
+      const elem = wrap;
+      if (document.fullscreenElement) document.exitFullscreen();
+      else elem.requestFullscreen?.();
+    });
+
+    // Snapshot (PNG download)
+    btnShot.addEventListener('click', async () => {
+      try {
+        const blob = await viewer.toBlob?.({ mimeType: 'image/png', idealAspect: true });
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'snapshot.png';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        } else {
+          // Fallback capture using toDataURL on internal canvas
+          const canvas = viewer.shadowRoot?.querySelector('canvas');
+          if (canvas) {
+            canvas.toBlob((b) => {
+              const url = URL.createObjectURL(b);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'snapshot.png';
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
+            });
+          }
+        }
+      } catch (err) {
+        alert('ไม่สามารถถ่ายรูปได้: ' + err);
+      }
+    });
+
+    // AR Launcher (HTTPS + อุปกรณ์ที่รองรับ)
+    btnAR.addEventListener('click', () => {
+      if (viewer.activateAR) viewer.activateAR();
+      else alert('อุปกรณ์/เบราว์เซอร์นี้ไม่รองรับ AR');
+    });
+      else elem.requestFullscreen?.();
+    });
+
+    btnReset.addEventListener('click', () => {
+      if (defaultOrbit) viewer.cameraOrbit = `${defaultOrbit.theta} ${defaultOrbit.phi} ${defaultOrbit.radius}`;
+    });
+
+    rngExp.addEventListener('input', () => viewer.exposure = parseFloat(rngExp.value));
+    rngShadow.addEventListener('input', () => viewer.shadowIntensity = parseFloat(rngShadow.value));
+    bgColor.addEventListener('input', () => viewer.backgroundColor = bgColor.value);
+
+    chkRotate.addEventListener('change', () => {
+      if (chkRotate.checked) viewer.setAttribute('auto-rotate', '');
+      else viewer.removeAttribute('auto-rotate');
+    });
+
+    selAnim.addEventListener('change', () => {
+      const name = selAnim.value || null;
+      viewer.animationName = name;
+      if (name) viewer.play(); else viewer.pause();
+    });
+  </script>
+</body>
+</html>
